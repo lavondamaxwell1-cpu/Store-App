@@ -1,166 +1,140 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import useCart from "../context/useCart";
-import useAuth from "../context/useAuth";
+import { useEffect, useState } from "react";
 import api from "../services/api";
+import ProductCard from "../components/ProductCard";
+import ActiveCoupons from "../components/ActiveCoupons";
+const Home = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-const Checkout = () => {
-  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const { cartItems, cartTotal, clearCart } = useCart();
-  const { user } = useAuth();
+  useEffect(() => {
+    let ignore = false;
 
-  const [shippingAddress, setShippingAddress] = useState({
-    address: "",
-    city: "",
-    postalCode: "",
+    api
+      .get("/products")
+      .then(({ data }) => {
+        if (!ignore) {
+          setProducts(data);
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setError(error.response?.data?.message || "Failed to load products.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const categories = [
+    "All",
+    ...new Set(products.map((product) => product.category)),
+  ];
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "All" || product.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
   });
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    setShippingAddress((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const placeOrder = async () => {
-    setError("");
-
-    if (cartItems.length === 0) {
-      setError("Your cart is empty.");
-      return;
-    }
-
-    if (
-      !shippingAddress.address ||
-      !shippingAddress.city ||
-      !shippingAddress.postalCode
-    ) {
-      setError("Please fill out your shipping address.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const orderItems = cartItems.map((item) => ({
-        product: item._id,
-        name: item.name,
-        image: item.image,
-        price: item.price,
-        quantity: item.quantity,
-      }));
-
-      const { data } = await api.post(
-        "/orders",
-        {
-          orderItems,
-          shippingAddress,
-          totalPrice: cartTotal,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        },
-      );
-
-      clearCart();
-      navigate(`/order-success/${data._id}`);
-    } catch (error) {
-      setError(error.response?.data?.message || "Failed to place order.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-4xl font-bold mb-8 text-blue-950">Checkout</h1>
+    <div className="min-h-screen bg-slate-50">
+      <section className="px-6 py-16 md:py-24">
+        <div className="max-w-7xl mx-auto rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 px-8 py-14 md:px-14 md:py-20 text-white shadow-xl">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-blue-200">
+            New arrivals
+          </p>
 
-      {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded-xl mb-6">
-          {error}
+          <h1 className="max-w-3xl text-4xl md:text-6xl font-black tracking-tight leading-tight">
+            Everyday style with a softer touch.
+          </h1>
+
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200">
+            Browse curated products, add your favorites to the cart, and check
+            out securely when you are ready.
+          </p>
+
+          <ActiveCoupons />
         </div>
-      )}
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-2xl font-bold mb-4">Customer Info</h2>
+      <main className="max-w-7xl mx-auto px-6 pb-16">
+        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-3xl font-black tracking-tight text-slate-950">
+              Featured Products
+            </h2>
 
-          <div className="space-y-4">
+            <p className="mt-2 text-slate-500">Fresh picks from the store</p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row">
             <input
-              value={user?.name || ""}
-              readOnly
-              className="w-full border p-3 rounded-xl bg-gray-100"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search products..."
+              className="w-full md:w-72 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
             />
 
-            <input
-              value={user?.email || ""}
-              readOnly
-              className="w-full border p-3 rounded-xl bg-gray-100"
-            />
-
-            <input
-              name="address"
-              value={shippingAddress.address}
-              onChange={handleChange}
-              placeholder="Shipping Address"
-              className="w-full border p-3 rounded-xl"
-            />
-
-            <input
-              name="city"
-              value={shippingAddress.city}
-              onChange={handleChange}
-              placeholder="City"
-              className="w-full border p-3 rounded-xl"
-            />
-
-            <input
-              name="postalCode"
-              value={shippingAddress.postalCode}
-              onChange={handleChange}
-              placeholder="Postal Code"
-              className="w-full border p-3 rounded-xl"
-            />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow h-fit">
-          <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        {loading && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <p className="text-slate-500">Loading products...</p>
+          </div>
+        )}
 
-          <div className="space-y-3 mb-4">
-            {cartItems.map((item) => (
-              <div key={item._id} className="flex justify-between text-sm">
-                <span>
-                  {item.name} × {item.quantity}
-                </span>
+        {error && (
+          <div className="rounded-3xl bg-red-50 p-5 text-red-700 border border-red-100">
+            {error}
+          </div>
+        )}
 
-                <span>${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
+        {!loading && !error && filteredProducts.length === 0 && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <p className="text-slate-500">
+              No products found. Try another search or category.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && filteredProducts.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
             ))}
           </div>
-
-          <div className="border-t pt-4 flex justify-between text-xl font-bold">
-            <span>Total</span>
-            <span>${cartTotal.toFixed(2)}</span>
-          </div>
-
-          <button
-            onClick={placeOrder}
-            disabled={loading}
-            className="mt-6 w-full bg-blue-950 text-white py-3 rounded-xl hover:bg-blue-900 disabled:bg-gray-400"
-          >
-            {loading ? "Placing Order..." : "Place Order"}
-          </button>
-        </div>
-      </div>
+        )}
+      </main>
     </div>
   );
 };
 
-export default Checkout;
+export default Home;

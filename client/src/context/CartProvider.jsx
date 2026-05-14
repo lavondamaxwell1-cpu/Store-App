@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import CartContext from "./CartContext";
+import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import  CartContext  from "./CartContext";
 
 const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => {
@@ -12,65 +13,91 @@ const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   const addToCart = (product) => {
-    setCartItems((prev) => {
-      const existingItem = prev.find((item) => item._id === product._id);
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item._id === product._id);
 
       if (existingItem) {
-        return prev.map((item) =>
+        if (existingItem.quantity >= product.countInStock) {
+          toast.error("No more stock available.");
+          return prevItems;
+        }
+
+        toast.success("Cart updated");
+
+        return prevItems.map((item) =>
           item._id === product._id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+              }
             : item,
         );
       }
 
-      return [...prev, { ...product, quantity: 1 }];
+      if (product.countInStock <= 0) {
+        toast.error("This product is out of stock.");
+        return prevItems;
+      }
+
+      toast.success("Added to cart");
+
+      return [
+        ...prevItems,
+        {
+          ...product,
+          quantity: 1,
+        },
+      ];
     });
   };
 
-  const increaseQuantity = (id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item._id === id ? { ...item, quantity: item.quantity + 1 } : item,
-      ),
+  const decreaseFromCart = (productId) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item._id === productId);
+
+      if (!existingItem) {
+        return prevItems;
+      }
+
+      if (existingItem.quantity === 1) {
+        toast.success("Removed from cart");
+        return prevItems.filter((item) => item._id !== productId);
+      }
+
+      toast.success("Cart updated");
+
+      return prevItems.map((item) =>
+        item._id === productId
+          ? {
+              ...item,
+              quantity: item.quantity - 1,
+            }
+          : item,
+      );
+    });
+  };
+
+  const removeFromCart = (productId) => {
+    setCartItems((prevItems) =>
+      prevItems.filter((item) => item._id !== productId),
     );
+
+    toast.success("Removed from cart");
   };
 
-  const decreaseQuantity = (id) => {
-    setCartItems((prev) =>
-      prev
-        .map((item) =>
-          item._id === id ? { ...item, quantity: item.quantity - 1 } : item,
-        )
-        .filter((item) => item.quantity > 0),
-    );
-  };
-
-  const removeFromCart = (id) => {
-    setCartItems((prev) => prev.filter((item) => item._id !== id));
-  };
-
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCartItems([]);
-  };
-
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
-
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+    localStorage.removeItem("cartItems");
+  }, []);
 
   return (
     <CartContext.Provider
       value={{
         cartItems,
         addToCart,
-        increaseQuantity,
-        decreaseQuantity,
+        decreaseFromCart,
         removeFromCart,
         clearCart,
-        cartTotal,
-        cartCount,
       }}
     >
       {children}

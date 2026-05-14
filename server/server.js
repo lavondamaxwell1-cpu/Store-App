@@ -6,6 +6,9 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import couponRoutes from "./routes/couponRoutes.js";
+
 dotenv.config();
 
 const app = express();
@@ -16,13 +19,15 @@ app.use(
     credentials: true,
   }),
 );
-
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/coupons", couponRoutes);
 
 app.get("/", (req, res) => {
   res.send("Store API is running");

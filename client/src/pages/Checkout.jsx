@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import useCart from "../context/useCart";
-import useAuth from "../context/useAuth";
+import { Link } from "react-router-dom";
 import api from "../services/api";
+import { useCart } from "../context/useCart";
+import toast from "react-hot-toast";
+import { fallbackImage } from "../utils/fallbackImage";
 
 const Checkout = () => {
-  const navigate = useNavigate();
-
-  const { cartItems, cartTotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { cartItems } = useCart();
 
   const [shippingAddress, setShippingAddress] = useState({
     address: "",
@@ -16,148 +14,304 @@ const Checkout = () => {
     postalCode: "",
   });
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
-  const handleChange = (e) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const subtotal = cartItems.reduce(
+    (total, item) => total + Number(item.price) * Number(item.quantity),
+    0,
+  );
+
+  const discountAmount = Number(coupon?.discountAmount || 0);
+  const finalTotal = Math.max(subtotal - discountAmount, 0);
+
+  const handleShippingChange = (e) => {
     setShippingAddress((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
   };
 
-  const placeOrder = async () => {
-    setError("");
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+
+    try {
+      setCouponLoading(true);
+      setCouponError("");
+
+      const { data } = await api.post("/coupons/validate", {
+        code: couponCode,
+        subtotal,
+      });
+
+      setCoupon(data);
+      toast.success(`Coupon ${data.code} applied`);
+    } catch (error) {
+      setCoupon(null);
+      setCouponError(error.response?.data?.message || "Invalid coupon code.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+    toast.success("Coupon removed");
+  };
+
+  const handleCheckout = async (e) => {
+    e.preventDefault();
 
     if (cartItems.length === 0) {
       setError("Your cart is empty.");
       return;
     }
 
-    if (
-      !shippingAddress.address ||
-      !shippingAddress.city ||
-      !shippingAddress.postalCode
-    ) {
-      setError("Please fill out your shipping address.");
-      return;
-    }
-
     try {
       setLoading(true);
+      setError("");
 
-      const orderItems = cartItems.map((item) => ({
-        product: item._id,
-        name: item.name,
-        image: item.image,
-        price: item.price,
-        quantity: item.quantity,
-      }));
+      const { data } = await api.post("/payments/create-checkout-session", {
+        cartItems,
+        shippingAddress,
+        couponCode: coupon?.code || "",
+      });
 
-      const { data } = await api.post(
-        "/orders",
-        {
-          orderItems,
-          shippingAddress,
-          totalPrice: cartTotal,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        },
-      );
-
-      clearCart();
-      navigate(`/order-success/${data._id}`);
+      window.location.href = data.url;
     } catch (error) {
-      setError(error.response?.data?.message || "Failed to place order.");
-    } finally {
+      setError(error.response?.data?.message || "Checkout failed.");
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-4xl font-bold mb-8 text-blue-950">Checkout</h1>
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-6 py-10">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-3xl font-black text-slate-950">
+            Your cart is empty
+          </h1>
 
-      {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded-xl mb-6">
-          {error}
-        </div>
-      )}
+          <p className="mt-2 text-slate-500">
+            Add products to your cart before checking out.
+          </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-2xl font-bold mb-4">Customer Info</h2>
-
-          <div className="space-y-4">
-            <input
-              value={user?.name || ""}
-              readOnly
-              className="w-full border p-3 rounded-xl bg-gray-100"
-            />
-
-            <input
-              value={user?.email || ""}
-              readOnly
-              className="w-full border p-3 rounded-xl bg-gray-100"
-            />
-
-            <input
-              name="address"
-              value={shippingAddress.address}
-              onChange={handleChange}
-              placeholder="Shipping Address"
-              className="w-full border p-3 rounded-xl"
-            />
-
-            <input
-              name="city"
-              value={shippingAddress.city}
-              onChange={handleChange}
-              placeholder="City"
-              className="w-full border p-3 rounded-xl"
-            />
-
-            <input
-              name="postalCode"
-              value={shippingAddress.postalCode}
-              onChange={handleChange}
-              placeholder="Postal Code"
-              className="w-full border p-3 rounded-xl"
-            />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow h-fit">
-          <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
-
-          <div className="space-y-3 mb-4">
-            {cartItems.map((item) => (
-              <div key={item._id} className="flex justify-between text-sm">
-                <span>
-                  {item.name} × {item.quantity}
-                </span>
-
-                <span>${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t pt-4 flex justify-between text-xl font-bold">
-            <span>Total</span>
-            <span>${cartTotal.toFixed(2)}</span>
-          </div>
-
-          <button
-            onClick={placeOrder}
-            disabled={loading}
-            className="mt-6 w-full bg-blue-950 text-white py-3 rounded-xl hover:bg-blue-900 disabled:bg-gray-400"
+          <Link
+            to="/"
+            className="mt-6 inline-block rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
           >
-            {loading ? "Placing Order..." : "Place Order"}
-          </button>
+            Continue Shopping
+          </Link>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 px-6 py-10">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Secure Checkout
+          </p>
+
+          <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">
+            Checkout
+          </h1>
+
+          <p className="mt-2 text-slate-500">
+            Enter your shipping details and apply any coupon before payment.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 rounded-3xl border border-red-100 bg-red-50 p-5 text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form
+          onSubmit={handleCheckout}
+          className="grid grid-cols-1 gap-8 lg:grid-cols-3"
+        >
+          <div className="lg:col-span-2 space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">
+                Shipping Address
+              </h2>
+
+              <div className="mt-6 space-y-4">
+                <input
+                  name="address"
+                  value={shippingAddress.address}
+                  onChange={handleShippingChange}
+                  placeholder="Street address"
+                  className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  required
+                />
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <input
+                    name="city"
+                    value={shippingAddress.city}
+                    onChange={handleShippingChange}
+                    placeholder="City"
+                    className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                    required
+                  />
+
+                  <input
+                    name="postalCode"
+                    value={shippingAddress.postalCode}
+                    onChange={handleShippingChange}
+                    placeholder="Postal code"
+                    className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">
+                Order Items
+              </h2>
+
+              <div className="mt-5 space-y-4">
+                {cartItems.map((item) => (
+                  <div
+                    key={item._id}
+                    className="flex items-center gap-4 rounded-3xl bg-slate-50 p-4"
+                  >
+                    <img
+                      src={item.image || fallbackImage}
+                      alt={item.name}
+                      onError={(e) => {
+                        e.currentTarget.src = fallbackImage;
+                      }}
+                      className="h-20 w-20 rounded-2xl object-cover bg-white"
+                    />
+
+                    <div className="flex-1">
+                      <p className="font-black text-slate-950">{item.name}</p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        Qty {item.quantity} × ${Number(item.price).toFixed(2)}
+                      </p>
+                    </div>
+
+                    <p className="font-black text-slate-950">
+                      ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">
+                Coupon Code
+              </h2>
+
+              <div className="mt-4 flex flex-col gap-3">
+                <input
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError("");
+                  }}
+                  placeholder="Enter coupon code"
+                  className="w-full rounded-full border border-slate-200 bg-white px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                />
+
+                {!coupon ? (
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    disabled={couponLoading}
+                    className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 transition"
+                  >
+                    {couponLoading ? "Applying..." : "Apply Coupon"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={removeCoupon}
+                    className="rounded-full bg-red-50 px-6 py-3 text-sm font-semibold text-red-600 hover:bg-red-100 transition"
+                  >
+                    Remove Coupon
+                  </button>
+                )}
+              </div>
+
+              {couponError && (
+                <p className="mt-3 text-sm font-semibold text-red-600">
+                  {couponError}
+                </p>
+              )}
+
+              {coupon && (
+                <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+                  Coupon {coupon.code} applied. You saved $
+                  {Number(coupon.discountAmount).toFixed(2)}.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">
+                Order Summary
+              </h2>
+
+              <div className="mt-6 space-y-4">
+                <div className="flex justify-between text-slate-500">
+                  <span>Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex justify-between font-semibold text-emerald-700">
+                    <span>Discount</span>
+                    <span>- ${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-200 pt-4 flex justify-between text-xl font-black text-slate-950">
+                  <span>Total</span>
+                  <span>${finalTotal.toFixed(2)}</span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-full bg-slate-950 px-6 py-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+                >
+                  {loading ? "Redirecting..." : "Pay with Stripe"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-slate-900 p-6 text-white">
+              <p className="text-sm font-bold">Secure payment</p>
+
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                You will be redirected to Stripe to complete your payment.
+              </p>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import express from "express";
 import Order from "../models/Order.js";
+import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -13,12 +14,30 @@ router.post("/", protect, async (req, res) => {
       return res.status(400).json({ message: "No order items" });
     }
 
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product);
+
+      if (!product) {
+        return res.status(404).json({
+          message: `${item.name} no longer exists`,
+        });
+      }
+
+      if (product.countInStock < item.quantity) {
+        return res.status(400).json({
+          message: `${product.name} only has ${product.countInStock} left in stock`,
+        });
+      }
+    }
+
     const order = await Order.create({
       user: req.user._id,
       orderItems,
       shippingAddress,
       totalPrice,
     });
+
+    
 
     res.status(201).json(order);
   } catch (error) {
@@ -99,4 +118,3 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
 });
 
 export default router;
-
