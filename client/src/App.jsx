@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import Wishlist from "./pages/Wishlist";
 import AdminCoupons from "./pages/AdminCoupons";
+import AdminReports from "./pages/AdminReports";
 
 function App() {
   return (
@@ -137,6 +138,14 @@ function App() {
           element={
             <AdminRoute>
               <AdminCoupons />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <AdminRoute>
+              <AdminReports />
             </AdminRoute>
           }
         />
