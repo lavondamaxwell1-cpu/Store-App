@@ -13,13 +13,28 @@ dotenv.config();
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.CLIENT_URL,
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Not allowed by CORS: ${origin}`));
+      }
+    },
     credentials: true,
   }),
 );
+
+// Stripe webhook needs raw body BEFORE express.json()
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
@@ -39,6 +54,7 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected");
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
