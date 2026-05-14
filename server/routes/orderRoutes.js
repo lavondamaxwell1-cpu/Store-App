@@ -71,12 +71,75 @@ router.get("/", protect, adminOnly, async (req, res) => {
   }
 });
 
-// Get single order
+// ADMIN: UPDATE ORDER TRACKING
+router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
+  try {
+    const { shippingCarrier, trackingNumber, trackingUrl } = req.body;
+
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "name email"
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.shippingCarrier = shippingCarrier || "";
+    order.trackingNumber = trackingNumber || "";
+    order.trackingUrl = trackingUrl || "";
+
+    if (trackingNumber) {
+      order.status = "Shipped";
+      order.shippedAt = order.shippedAt || new Date();
+    }
+
+    const updatedOrder = await order.save();
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ADMIN: UPDATE ORDER STATUS
+router.put("/:id/status", protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "name email"
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.status = status;
+
+    if (status === "Shipped") {
+      order.shippedAt = order.shippedAt || new Date();
+    }
+
+    if (status === "Delivered") {
+      order.deliveredAt = order.deliveredAt || new Date();
+    }
+
+    const updatedOrder = await order.save();
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET SINGLE ORDER
 router.get("/:id", protect, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "name email",
+      "name email"
     );
 
     if (!order) {
@@ -95,26 +158,4 @@ router.get("/:id", protect, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-// Admin: update order status
-router.put("/:id/status", protect, adminOnly, async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true },
-    );
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    res.json(order);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 export default router;

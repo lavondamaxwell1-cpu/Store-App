@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../services/api";
+import { fallbackImage } from "../utils/fallbackImage";
 
 const AdminOrderDetails = () => {
   const { id } = useParams();
 
   const [order, setOrder] = useState(null);
   const [status, setStatus] = useState("");
+
+  const [trackingData, setTrackingData] = useState({
+    shippingCarrier: "",
+    trackingNumber: "",
+    trackingUrl: "",
+  });
+
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingTracking, setSavingTracking] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -21,6 +31,12 @@ const AdminOrderDetails = () => {
         if (!ignore) {
           setOrder(data);
           setStatus(data.status);
+
+          setTrackingData({
+            shippingCarrier: data.shippingCarrier || "",
+            trackingNumber: data.trackingNumber || "",
+            trackingUrl: data.trackingUrl || "",
+          });
         }
       })
       .catch((error) => {
@@ -41,7 +57,7 @@ const AdminOrderDetails = () => {
 
   const updateStatus = async () => {
     try {
-      setSaving(true);
+      setSavingStatus(true);
       setError("");
       setSuccess("");
 
@@ -53,9 +69,43 @@ const AdminOrderDetails = () => {
       setStatus(data.status);
       setSuccess("Order status updated successfully.");
     } catch (error) {
-      setError(error.response?.data?.message || "Failed to update order.");
+      setError(error.response?.data?.message || "Failed to update status.");
     } finally {
-      setSaving(false);
+      setSavingStatus(false);
+    }
+  };
+
+  const handleTrackingChange = (e) => {
+    setTrackingData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const updateTracking = async (e) => {
+    e.preventDefault();
+
+    try {
+      setSavingTracking(true);
+      setError("");
+      setSuccess("");
+
+      const { data } = await api.put(`/orders/${id}/tracking`, trackingData);
+
+      setOrder(data);
+      setStatus(data.status);
+
+      setTrackingData({
+        shippingCarrier: data.shippingCarrier || "",
+        trackingNumber: data.trackingNumber || "",
+        trackingUrl: data.trackingUrl || "",
+      });
+
+      setSuccess("Tracking information updated successfully.");
+    } catch (error) {
+      setError(error.response?.data?.message || "Failed to update tracking.");
+    } finally {
+      setSavingTracking(false);
     }
   };
 
@@ -88,7 +138,7 @@ const AdminOrderDetails = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 px-6 py-10">
-        <div className="max-w-6xl mx-auto rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
           <p className="text-slate-500">Loading order...</p>
         </div>
       </div>
@@ -98,10 +148,10 @@ const AdminOrderDetails = () => {
   if (error && !order) {
     return (
       <div className="min-h-screen bg-slate-50 px-6 py-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto max-w-6xl">
           <Link
             to="/admin/orders"
-            className="mb-6 inline-block rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-700 border border-slate-200 hover:bg-slate-100 transition"
+            className="mb-6 inline-block rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
           >
             ← Back to Orders
           </Link>
@@ -116,10 +166,10 @@ const AdminOrderDetails = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10">
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl">
         <Link
           to="/admin/orders"
-          className="mb-6 inline-block rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-700 border border-slate-200 hover:bg-slate-100 transition"
+          className="mb-6 inline-block rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
         >
           ← Back to Orders
         </Link>
@@ -154,22 +204,22 @@ const AdminOrderDetails = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-black text-slate-950">Customer</h2>
 
-              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-3xl bg-slate-50 p-4">
-                  <p className="font-bold text-slate-700">Name</p>
+                  <p className="text-sm font-bold text-slate-700">Name</p>
                   <p className="mt-1 text-slate-500">
                     {order.user?.name || "Unknown"}
                   </p>
                 </div>
 
                 <div className="rounded-3xl bg-slate-50 p-4">
-                  <p className="font-bold text-slate-700">Email</p>
-                  <p className="mt-1 text-slate-500">
+                  <p className="text-sm font-bold text-slate-700">Email</p>
+                  <p className="mt-1 break-all text-slate-500">
                     {order.user?.email || "No email"}
                   </p>
                 </div>
@@ -182,27 +232,30 @@ const AdminOrderDetails = () => {
               </h2>
 
               <div className="mt-5 space-y-3">
-                {order.orderItems.map((item) => (
+                {order.orderItems.map((item, index) => (
                   <div
-                    key={item._id}
+                    key={item._id || item.product || index}
                     className="flex items-center gap-4 rounded-3xl bg-slate-50 p-3"
                   >
                     <img
-                      src={item.image}
+                      src={item.image || fallbackImage}
                       alt={item.name}
-                      className="h-20 w-20 rounded-2xl object-cover bg-white"
+                      onError={(e) => {
+                        e.currentTarget.src = fallbackImage;
+                      }}
+                      className="h-20 w-20 rounded-2xl bg-white object-cover"
                     />
 
                     <div className="flex-1">
                       <p className="font-bold text-slate-950">{item.name}</p>
 
                       <p className="text-sm text-slate-500">
-                        Qty {item.quantity} × ${item.price}
+                        Qty {item.quantity} × ${Number(item.price).toFixed(2)}
                       </p>
                     </div>
 
                     <p className="font-black text-slate-950">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -219,6 +272,68 @@ const AdminOrderDetails = () => {
                 {order.shippingAddress.postalCode}
               </p>
             </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">
+                Tracking Information
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Add shipping details after the order has been fulfilled.
+              </p>
+
+              <form onSubmit={updateTracking} className="mt-6 space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Shipping Carrier
+                  </label>
+
+                  <input
+                    name="shippingCarrier"
+                    value={trackingData.shippingCarrier}
+                    onChange={handleTrackingChange}
+                    placeholder="USPS, UPS, FedEx, DHL..."
+                    className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Tracking Number
+                  </label>
+
+                  <input
+                    name="trackingNumber"
+                    value={trackingData.trackingNumber}
+                    onChange={handleTrackingChange}
+                    placeholder="Tracking number"
+                    className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Tracking URL
+                  </label>
+
+                  <input
+                    name="trackingUrl"
+                    value={trackingData.trackingUrl}
+                    onChange={handleTrackingChange}
+                    placeholder="https://..."
+                    className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingTracking}
+                  className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+                >
+                  {savingTracking ? "Saving Tracking..." : "Save Tracking"}
+                </button>
+              </form>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -227,10 +342,34 @@ const AdminOrderDetails = () => {
 
               <div className="mt-5 space-y-4">
                 <div className="flex justify-between text-slate-500">
-                  <span>Total</span>
+                  <span>Subtotal</span>
                   <span className="font-black text-slate-950">
-                    ${order.totalPrice.toFixed(2)}
+                    $
+                    {Number(order.subtotalPrice || order.totalPrice).toFixed(2)}
                   </span>
+                </div>
+
+                {Number(order.discountAmount || 0) > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Discount</span>
+                    <span className="font-black">
+                      -${Number(order.discountAmount).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                {order.couponCode && (
+                  <div className="flex justify-between text-slate-500">
+                    <span>Coupon</span>
+                    <span className="font-black text-slate-950">
+                      {order.couponCode}
+                    </span>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-200 pt-4 flex justify-between text-xl font-black text-slate-950">
+                  <span>Total</span>
+                  <span>${Number(order.totalPrice).toFixed(2)}</span>
                 </div>
 
                 <div className="border-t border-slate-200 pt-4 space-y-3">
@@ -256,6 +395,19 @@ const AdminOrderDetails = () => {
                 {order.paidAt && (
                   <p className="text-sm text-slate-500">
                     Paid on {new Date(order.paidAt).toLocaleDateString()}
+                  </p>
+                )}
+
+                {order.shippedAt && (
+                  <p className="text-sm text-slate-500">
+                    Shipped on {new Date(order.shippedAt).toLocaleDateString()}
+                  </p>
+                )}
+
+                {order.deliveredAt && (
+                  <p className="text-sm text-slate-500">
+                    Delivered on{" "}
+                    {new Date(order.deliveredAt).toLocaleDateString()}
                   </p>
                 )}
               </div>
@@ -285,11 +437,50 @@ const AdminOrderDetails = () => {
               <button
                 type="button"
                 onClick={updateStatus}
-                disabled={saving || status === order.status}
+                disabled={savingStatus || status === order.status}
                 className="mt-4 w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
               >
-                {saving ? "Updating..." : "Update Status"}
+                {savingStatus ? "Updating..." : "Update Status"}
               </button>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-black text-slate-950">
+                Tracking Preview
+              </h2>
+
+              {order.trackingNumber ? (
+                <div className="mt-4 space-y-2 text-sm">
+                  <p>
+                    <span className="font-bold text-slate-700">Carrier:</span>{" "}
+                    <span className="text-slate-500">
+                      {order.shippingCarrier || "Not provided"}
+                    </span>
+                  </p>
+
+                  <p>
+                    <span className="font-bold text-slate-700">Tracking:</span>{" "}
+                    <span className="text-slate-500">
+                      {order.trackingNumber}
+                    </span>
+                  </p>
+
+                  {order.trackingUrl && (
+                    <a
+                      href={order.trackingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-block rounded-full bg-slate-950 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                    >
+                      Open Tracking
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  No tracking has been added yet.
+                </p>
+              )}
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
