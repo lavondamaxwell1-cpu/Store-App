@@ -22,11 +22,18 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Not allowed by CORS: ${origin}`));
+      if (!origin) {
+        return callback(null, true);
       }
+
+      const isAllowedOrigin = allowedOrigins.includes(origin);
+      const isVercelPreview = origin.endsWith(".vercel.app");
+
+      if (isAllowedOrigin || isVercelPreview) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
   }),
