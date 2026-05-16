@@ -4,7 +4,8 @@ import Product from "../models/Product.js";
 import Order from "../models/Order.js";
 import Coupon from "../models/Coupon.js";
 import { protect } from "../middleware/authMiddleware.js";
-
+import sendEmail from "../utils/sendEmail.js";
+import { orderConfirmationTemplate } from "../utils/emailTemplates.js";
 const router = express.Router();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -164,7 +165,7 @@ router.post("/webhook", async (req, res) => {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET,
+      process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (error) {
     return res.status(400).send(`Webhook Error: ${error.message}`);
@@ -190,6 +191,29 @@ router.post("/webhook", async (req, res) => {
             },
           });
         }
+
+        const populatedOrder = await Order.findById(order._id).populate(
+          "user",
+          "name email"
+        );
+
+        if (populatedOrder?.user?.email) {
+          try {
+            await sendEmail({
+              to: populatedOrder.user.email,
+              subject: `Order Confirmation #${populatedOrder._id
+                .toString()
+                .slice(-6)
+                .toUpperCase()}`,
+              html: orderConfirmationTemplate(populatedOrder),
+            });
+          } catch (emailError) {
+            console.error(
+              "Order confirmation email failed:",
+              emailError.message
+            );
+          }
+        }
       }
     }
 
@@ -198,5 +222,4 @@ router.post("/webhook", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 export default router;
