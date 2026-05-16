@@ -151,6 +151,7 @@ router.post("/create-checkout-session", protect, async (req, res) => {
       orderId: order._id,
     });
   } catch (error) {
+    console.error("Create checkout session error:", error);
     res.status(500).json({ message: error.message });
   }
 });
