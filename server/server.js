@@ -51,9 +51,27 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Store API is running");
-});
+// app.get("/api/test-email", async (req, res) => {
+//   try {
+//     await sendEmail({
+//       to: "lavondamaxwell1@gmail.com",
+//       subject: "Lavonda Store Email Test",
+//       html: `
+//         <h1>Email is working 🎉</h1>
+//         <p>This is a test email from your deployed store backend.</p>
+//       `,
+//     });
+
+//     res.json({ message: "Test email sent" });
+//   } catch (error) {
+//     console.error("Test email failed:", error);
+//     res.status(500).json({ message: error.message });
+//   }
+// });
+
+// app.get("/", (req, res) => {
+//   res.send("Store API is running");
+// });
 
 const PORT = process.env.PORT || 5000;
 
