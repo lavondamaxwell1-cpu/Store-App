@@ -2,20 +2,35 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+const categories = [
+  "Clothing",
+  "Shoes",
+  "Accessories",
+  "Beauty",
+  "Home",
+  "Electronics",
+  "Food",
+  "Other",
+];
+
 const CreateProduct = () => {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     name: "",
     description: "",
     price: "",
     image: "",
-    category: "",
+    category: "Clothing",
     countInStock: "",
-  });
+  };
 
+  const [formData, setFormData] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -35,6 +50,7 @@ const CreateProduct = () => {
     try {
       setUploading(true);
       setError("");
+      setSuccess("");
 
       const { data } = await api.post("/upload", uploadData, {
         headers: {
@@ -46,6 +62,8 @@ const CreateProduct = () => {
         ...prev,
         image: data.url,
       }));
+
+      setSuccess("Image uploaded successfully.");
     } catch (error) {
       setError(error.response?.data?.message || "Image upload failed.");
     } finally {
@@ -53,21 +71,45 @@ const CreateProduct = () => {
     }
   };
 
-  const createProduct = async (e) => {
-    e.preventDefault();
-    setError("");
+  const createProduct = async (stayOnPage = false) => {
+    if (!formData.image) {
+      setError("Please upload a product image.");
+      return;
+    }
 
     try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
       await api.post("/products", {
         ...formData,
         price: Number(formData.price),
         countInStock: Number(formData.countInStock),
       });
 
-      navigate("/admin/products");
+      if (stayOnPage) {
+        setFormData(emptyForm);
+        setSuccess("Product created. You can add another one.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        navigate("/admin/products");
+      }
     } catch (error) {
       setError(error.response?.data?.message || "Failed to create product.");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    createProduct(false);
+  };
+
+  const handleSaveAndAddAnother = (e) => {
+    e.preventDefault();
+    createProduct(true);
   };
 
   return (
@@ -90,65 +132,114 @@ const CreateProduct = () => {
           </h1>
 
           <p className="mt-2 text-slate-500">
-            Create a new product for your storefront.
+            Create a new product for your storefront. Use Save & Add Another to
+            quickly enter multiple products.
           </p>
 
-          {error && (
-            <div className="mt-6 rounded-3xl border border-red-100 bg-red-50 p-5 text-red-700">
-              {error}
+          {(error || success) && (
+            <div className="mt-6 space-y-3">
+              {error && (
+                <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 text-emerald-700">
+                  {success}
+                </div>
+              )}
             </div>
           )}
 
-          <form onSubmit={createProduct} className="mt-6 space-y-4">
-            <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Product Name"
-              className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
-              required
-            />
-
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Description"
-              rows="4"
-              className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
-              required
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                placeholder="Price"
-                type="number"
-                className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
-                required
-              />
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Product Name
+              </label>
 
               <input
-                name="countInStock"
-                value={formData.countInStock}
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
-                placeholder="Stock"
-                type="number"
+                placeholder="Product name"
                 className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
                 required
               />
             </div>
 
-            <input
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              placeholder="Category"
-              className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
-              required
-            />
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Description
+              </label>
+
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Product description"
+                rows="4"
+                className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Price
+                </label>
+
+                <input
+                  name="price"
+                  value={formData.price}
+                  onChange={handleChange}
+                  placeholder="29.99"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Stock
+                </label>
+
+                <input
+                  name="countInStock"
+                  value={formData.countInStock}
+                  onChange={handleChange}
+                  placeholder="10"
+                  type="number"
+                  min="0"
+                  className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Category
+              </label>
+
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10 transition"
+                required
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5">
               <label className="block text-sm font-bold text-slate-700 mb-3">
@@ -169,17 +260,38 @@ const CreateProduct = () => {
               )}
 
               {formData.image && (
-                <img
-                  src={formData.image}
-                  alt="Preview"
-                  className="mt-4 h-36 w-36 rounded-2xl object-cover bg-white"
-                />
+                <div className="mt-4">
+                  <img
+                    src={formData.image}
+                    alt="Preview"
+                    className="h-40 w-40 rounded-2xl object-cover bg-white"
+                  />
+
+                  <p className="mt-2 break-all text-xs text-slate-400">
+                    {formData.image}
+                  </p>
+                </div>
               )}
             </div>
 
-            <button className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition">
-              Create Product
-            </button>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <button
+                type="submit"
+                disabled={saving || uploading}
+                className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+              >
+                {saving ? "Creating..." : "Create Product"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveAndAddAnother}
+                disabled={saving || uploading}
+                className="rounded-full bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:bg-slate-200 disabled:cursor-not-allowed transition"
+              >
+                {saving ? "Saving..." : "Save & Add Another"}
+              </button>
+            </div>
           </form>
         </div>
       </div>
