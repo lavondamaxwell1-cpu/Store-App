@@ -100,31 +100,31 @@ router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    res.json(updatedOrder);
+
     const shouldSendShippingEmail =
       !hadTrackingBefore &&
       Boolean(updatedOrder.trackingNumber) &&
       updatedOrder.user?.email;
 
     if (shouldSendShippingEmail) {
-      try {
-        await sendEmail({
-          to: updatedOrder.user.email,
-          subject: `Your order #${updatedOrder._id
-            .toString()
-            .slice(-6)
-            .toUpperCase()} has shipped`,
-          html: shippingNotificationTemplate(updatedOrder),
-        });
-      } catch (emailError) {
+      sendEmail({
+        to: updatedOrder.user.email,
+        subject: `Your order #${updatedOrder._id
+          .toString()
+          .slice(-6)
+          .toUpperCase()} has shipped`,
+        html: shippingNotificationTemplate(updatedOrder),
+      }).catch((emailError) => {
         console.error("Shipping email failed:", emailError.message);
-      }
+      });
     }
-
-    res.json(updatedOrder);
   } catch (error) {
+    console.error("Tracking update error:", error.message);
     res.status(500).json({ message: error.message });
   }
 });
+
 // ADMIN: UPDATE ORDER STATUS
 router.put("/:id/status", protect, adminOnly, async (req, res) => {
   try {
