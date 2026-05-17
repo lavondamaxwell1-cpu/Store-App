@@ -232,7 +232,7 @@ const AdminDashboard = () => {
               to="/admin/reviews"
               className="rounded-full bg-white px-6 py-3 text-center text-sm font-semibold text-slate-700 border border-slate-200 hover:bg-slate-100 transition"
             >
-              Manage Reviews
+              Manage Reviewsclient
             </Link>
           </div>
         </div>

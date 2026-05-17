@@ -54,12 +54,12 @@ const AdminReports = () => {
 
     const totalRevenue = paidOrders.reduce(
       (total, order) => total + Number(order.totalPrice || 0),
-      0,
+      0
     );
 
     const totalDiscounts = paidOrders.reduce(
       (total, order) => total + Number(order.discountAmount || 0),
-      0,
+      0
     );
 
     const now = new Date();
@@ -76,7 +76,7 @@ const AdminReports = () => {
 
     const revenueThisMonth = ordersThisMonth.reduce(
       (total, order) => total + Number(order.totalPrice || 0),
-      0,
+      0
     );
 
     const productSalesMap = {};
@@ -114,20 +114,17 @@ const AdminReports = () => {
       .filter(
         (product) =>
           Number(product.countInStock || 0) > 0 &&
-          Number(product.countInStock || 0) <= 5,
+          Number(product.countInStock || 0) <= 5
       )
       .sort((a, b) => Number(a.countInStock || 0) - Number(b.countInStock || 0))
       .slice(0, 5);
 
     const outOfStockProducts = products.filter(
-      (product) => Number(product.countInStock || 0) <= 0,
+      (product) => Number(product.countInStock || 0) <= 0
     );
 
     const recentPaidOrders = [...paidOrders]
-      .sort(
-        (a, b) =>
-          new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt),
-      )
+      .sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt))
       .slice(0, 5);
 
     return {
@@ -446,7 +443,10 @@ const AdminReports = () => {
             ) : (
               <div className="space-y-4">
                 {reports.recentPaidOrders.map((order) => (
-                  <div key={order._id} className="rounded-3xl bg-slate-50 p-4">
+                  <div
+                    key={order._id}
+                    className="rounded-3xl bg-slate-50 p-4"
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -459,7 +459,7 @@ const AdminReports = () => {
 
                         <p className="mt-1 text-sm text-slate-500">
                           {new Date(
-                            order.paidAt || order.createdAt,
+                            order.paidAt || order.createdAt
                           ).toLocaleDateString()}
                         </p>
                       </div>
