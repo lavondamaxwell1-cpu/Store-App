@@ -69,3 +69,51 @@ export const orderConfirmationTemplate = (order) => {
     </div>
   `;
 };
+
+export const shippingNotificationTemplate = (order) => {
+  const orderNumber = order._id.toString().slice(-6).toUpperCase();
+
+  return `
+    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 32px;">
+      <div style="max-width: 640px; margin: 0 auto; background: white; border-radius: 24px; padding: 32px; border: 1px solid #e5e7eb;">
+        <h1 style="margin: 0; color: #020617;">Your order has shipped!</h1>
+
+        <p style="color: #64748b; font-size: 16px; line-height: 1.6;">
+          Good news — your order is on the way. You can use the tracking details below to follow your package.
+        </p>
+
+        <div style="background: #f1f5f9; border-radius: 18px; padding: 20px; margin: 24px 0;">
+          <p style="margin: 0; color: #64748b;">Order Number</p>
+          <h2 style="margin: 6px 0 0; color: #020617;">#${orderNumber}</h2>
+        </div>
+
+        <div style="background: #ecfdf5; border-radius: 18px; padding: 20px; margin: 24px 0;">
+          <p style="margin: 0 0 8px; color: #047857;">
+            <strong>Carrier:</strong> ${order.shippingCarrier || "Not provided"}
+          </p>
+
+          <p style="margin: 0 0 8px; color: #047857;">
+            <strong>Tracking Number:</strong> ${order.trackingNumber || "Not provided"}
+          </p>
+
+          ${
+            order.trackingUrl
+              ? `
+                <a
+                  href="${order.trackingUrl}"
+                  style="display: inline-block; margin-top: 12px; background: #020617; color: white; padding: 12px 18px; border-radius: 999px; text-decoration: none; font-weight: bold;"
+                >
+                  Track Package
+                </a>
+              `
+              : ""
+          }
+        </div>
+
+        <p style="margin-top: 32px; color: #64748b; font-size: 14px;">
+          Thank you for shopping with Lavonda Store.
+        </p>
+      </div>
+    </div>
+  `;
+};

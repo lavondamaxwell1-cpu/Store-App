@@ -2,6 +2,8 @@ import express from "express";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
+import sendEmail from "../utils/sendEmail.js";
+import { shippingNotificationTemplate } from "../utils/emailTemplates.js";
 
 const router = express.Router();
 
@@ -85,6 +87,8 @@ router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    const hadTrackingBefore = Boolean(order.trackingNumber);
+
     order.shippingCarrier = shippingCarrier || "";
     order.trackingNumber = trackingNumber || "";
     order.trackingUrl = trackingUrl || "";
@@ -96,12 +100,31 @@ router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    const shouldSendShippingEmail =
+      !hadTrackingBefore &&
+      Boolean(updatedOrder.trackingNumber) &&
+      updatedOrder.user?.email;
+
+    if (shouldSendShippingEmail) {
+      try {
+        await sendEmail({
+          to: updatedOrder.user.email,
+          subject: `Your order #${updatedOrder._id
+            .toString()
+            .slice(-6)
+            .toUpperCase()} has shipped`,
+          html: shippingNotificationTemplate(updatedOrder),
+        });
+      } catch (emailError) {
+        console.error("Shipping email failed:", emailError.message);
+      }
+    }
+
     res.json(updatedOrder);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
 // ADMIN: UPDATE ORDER STATUS
 router.put("/:id/status", protect, adminOnly, async (req, res) => {
   try {
