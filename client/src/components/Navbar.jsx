@@ -89,6 +89,9 @@ const Navbar = () => {
                     <NavLink to="/admin/reports" className={linkClass}>
                       Reports
                     </NavLink>
+                    <NavLink to="/admin/reviews" className={linkClass}>
+                      Reviews
+                    </NavLink>
                   </>
                 )}
 
@@ -198,6 +201,13 @@ const Navbar = () => {
                         className={mobileLinkClass}
                       >
                         Reports
+                      </NavLink>
+                      <NavLink
+                        to="/admin/reviews"
+                        onClick={closeMenu}
+                        className={mobileLinkClass}
+                      >
+                        Reviews
                       </NavLink>
                     </>
                   )}
