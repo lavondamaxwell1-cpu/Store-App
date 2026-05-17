@@ -23,6 +23,7 @@ import Wishlist from "./pages/Wishlist";
 import AdminCoupons from "./pages/AdminCoupons";
 import AdminReports from "./pages/AdminReports";
 import AdminReviews from "./pages/AdminReviews";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -158,6 +159,7 @@ function App() {
             </AdminRoute>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
