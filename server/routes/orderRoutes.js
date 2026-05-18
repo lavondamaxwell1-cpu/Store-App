@@ -108,6 +108,8 @@ router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
       updatedOrder.user?.email;
 
     if (shouldSendShippingEmail) {
+      console.log("Sending shipping email to:", updatedOrder.user.email);
+
       sendEmail({
         to: updatedOrder.user.email,
         subject: `Your order #${updatedOrder._id
