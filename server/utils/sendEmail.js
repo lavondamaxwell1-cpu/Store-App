@@ -1,30 +1,20 @@
-import dns from "dns";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-dns.setDefaultResultOrder("ipv4first");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async ({ to, subject, html }) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-  });
-
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || "Lavonda Store <onboarding@resend.dev>",
     to,
     subject,
     html,
   });
+
+  if (error) {
+    throw new Error(error.message || "Failed to send email");
+  }
+
+  return data;
 };
 
 export default sendEmail;
