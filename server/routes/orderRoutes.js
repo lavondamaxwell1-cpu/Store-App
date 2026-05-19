@@ -39,8 +39,6 @@ router.post("/", protect, async (req, res) => {
       totalPrice,
     });
 
-    
-
     res.status(201).json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -80,7 +78,7 @@ router.put("/:id/tracking", protect, adminOnly, async (req, res) => {
 
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "name email"
+      "name email",
     );
 
     if (!order) {
@@ -134,7 +132,7 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
 
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "name email"
+      "name email",
     );
 
     if (!order) {
@@ -159,12 +157,104 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
   }
 });
 
+// CUSTOMER: REQUEST ORDER CANCELLATION
+router.put("/:id/request-cancel", protect, async (req, res) => {
+  try {
+    const { cancelReason } = req.body;
+
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "name email",
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const isOwner = order.user._id.toString() === req.user._id.toString();
+
+    if (!isOwner) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    if (order.status === "Shipped" || order.status === "Delivered") {
+      return res.status(400).json({
+        message: "This order can no longer be canceled because it has shipped.",
+      });
+    }
+
+    if (order.status === "Canceled") {
+      return res.status(400).json({
+        message: "This order is already canceled.",
+      });
+    }
+
+    if (order.cancelStatus === "Pending") {
+      return res.status(400).json({
+        message: "Cancellation request is already pending.",
+      });
+    }
+
+    order.cancelRequested = true;
+    order.cancelReason = cancelReason || "";
+    order.cancelRequestedAt = new Date();
+    order.cancelStatus = "Pending";
+
+    const updatedOrder = await order.save();
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ADMIN: APPROVE OR DENY CANCELLATION REQUEST
+router.put("/:id/cancel-decision", protect, adminOnly, async (req, res) => {
+  try {
+    const { decision } = req.body;
+
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "name email",
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.cancelStatus !== "Pending") {
+      return res.status(400).json({
+        message: "There is no pending cancellation request for this order.",
+      });
+    }
+
+    if (decision === "Approved") {
+      order.cancelStatus = "Approved";
+      order.cancelDecisionAt = new Date();
+      order.status = "Canceled";
+    } else if (decision === "Denied") {
+      order.cancelStatus = "Denied";
+      order.cancelDecisionAt = new Date();
+    } else {
+      return res.status(400).json({
+        message: "Decision must be Approved or Denied.",
+      });
+    }
+
+    const updatedOrder = await order.save();
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // GET SINGLE ORDER
 router.get("/:id", protect, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "name email"
+      "name email",
     );
 
     if (!order) {

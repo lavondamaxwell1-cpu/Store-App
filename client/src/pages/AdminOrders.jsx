@@ -13,7 +13,7 @@ const AdminOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedPayment, setSelectedPayment] = useState("All");
-
+  const [cancelFilter, setCancelFilter] = useState("All");
   useEffect(() => {
     let ignore = false;
 
@@ -43,7 +43,8 @@ const AdminOrders = () => {
   const filteredOrders = orders.filter((order) => {
     const customerName = order.user?.name || "";
     const customerEmail = order.user?.email || "";
-
+    const matchesCancel =
+      cancelFilter === "All" || order.cancelStatus === cancelFilter;
     const matchesSearch =
       customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,7 +58,7 @@ const AdminOrders = () => {
       (selectedPayment === "Paid" && order.isPaid) ||
       (selectedPayment === "Unpaid" && !order.isPaid);
 
-    return matchesSearch && matchesStatus && matchesPayment;
+    return matchesSearch && matchesStatus && matchesPayment && matchesCancel;
   });
 
   const updateOrderStatus = async (orderId, status) => {
@@ -185,6 +186,17 @@ const AdminOrders = () => {
                 <option value="Paid">Paid</option>
                 <option value="Unpaid">Unpaid</option>
               </select>
+
+              <select
+                value={cancelFilter}
+                onChange={(e) => setCancelFilter(e.target.value)}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-900/10"
+              >
+                <option value="All">All Cancellation Statuses</option>
+                <option value="Pending">Cancellation Requested</option>
+                <option value="Approved">Cancellation Approved</option>
+                <option value="Denied">Cancellation Denied</option>
+              </select>
             </div>
           </div>
 
@@ -255,6 +267,23 @@ const AdminOrders = () => {
                     >
                       {order.status}
                     </span>
+                    {order.cancelStatus === "Pending" && (
+                      <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-bold text-yellow-700">
+                        Cancellation Requested
+                      </span>
+                    )}
+
+                    {order.cancelStatus === "Approved" && (
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">
+                        Cancellation Approved
+                      </span>
+                    )}
+
+                    {order.cancelStatus === "Denied" && (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                        Cancellation Denied
+                      </span>
+                    )}
                   </div>
                 </div>
 

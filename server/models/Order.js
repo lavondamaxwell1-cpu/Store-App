@@ -128,6 +128,30 @@ const orderSchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+
+    cancelRequested: {
+      type: Boolean,
+      default: false,
+    },
+
+    cancelReason: {
+      type: String,
+      default: "",
+    },
+
+    cancelRequestedAt: {
+      type: Date,
+    },
+
+    cancelStatus: {
+      type: String,
+      enum: ["None", "Pending", "Approved", "Denied"],
+      default: "None",
+    },
+
+    cancelDecisionAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
