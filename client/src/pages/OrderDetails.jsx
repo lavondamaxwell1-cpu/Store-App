@@ -292,6 +292,10 @@ const OrderDetails = () => {
                       {order.cancelReason}
                     </p>
                   )}
+                  <p className="mt-3 text-xs text-slate-400">
+                    Debug: status={order.status}, cancelStatus=
+                    {order.cancelStatus || "missing"}
+                  </p>
                 </div>
               ) : (
                 <p className="mt-3 text-slate-500">
